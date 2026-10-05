@@ -1,0 +1,9 @@
+{
+  "name": "ssn-guard",
+  "displayName": "SSN Guard",
+  "version": "1.0.0",
+  "description": "Masks U.S. Social Security numbers (and ITINs) to ***-**-1234 in prompts, command output, file reads, and MCP results before they reach the model.",
+  "author": { "name": "John Renaldi" },
+  "license": "MIT",
+  "keywords": ["pii", "ssn", "redaction", "compliance", "security"]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "ssn-guard-marketplace",
+  "owner": { "name": "John Renaldi" },
+  "metadata": { "description": "SSN masking hooks for Claude Code and OpenAI Codex" },
+  "plugins": [
+    {
+      "name": "ssn-guard",
+      "source": "./plugins/ssn-guard",
+      "description": "Masks Social Security numbers to ***-**-1234 before they reach the model.",
+      "version": "1.0.0",
+      "category": "security"
+    }
+  ]
+}
