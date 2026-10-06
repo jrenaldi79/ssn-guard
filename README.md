@@ -6,6 +6,27 @@ The plugin checks prompts, masks command output, and checks tool results. Output
 is withheld if command execution or masking fails. Windows commands use the
 active PowerShell executable; POSIX commands retain the Bash wrapper.
 
+Detected values in text tool results are redacted to `***-**-1234`, with a
+warning that possible SSNs were redacted and false positives are possible.
+Shell maskers warn on stderr while keeping stdout usable as JSON or other
+machine-readable text. Both streams must be captured to retain the warning.
+
+Codex post-tool hooks use `continue: false` and sanitized `stopReason` feedback
+instead of `decision: "block"`. According to the
+[Codex hook contract](https://learn.chatgpt.com/docs/hooks), this replaces the
+model-visible result without rejecting nested JavaScript tool promises.
+Structured results are serialized as text feedback; their original host-level
+shape is not guaranteed. Claude Code keeps its existing output replacement.
+Prompt checks, PDF/image policies and masking failures retain their current
+behavior.
+
+After refreshing and trusting the installed plugin, verify direct tool reads,
+nested JavaScript calls that print their result, and nested calls that access
+structured fields using invalid synthetic SSN-shaped fixtures. Check that each
+redaction has a warning, calls are not rejected, and original content cannot
+escape through the nested result. Unit tests verify the emitted hook contract;
+they do not establish which value a live Codex nested promise receives.
+
 ## Layout
 
 - `plugins/ssn-guard/scripts/`: guard, masker, and portable launchers.
@@ -19,6 +40,7 @@ active PowerShell executable; POSIX commands retain the Bash wrapper.
 ```powershell
 python -m pytest plugins/ssn-guard/tests/test_windows_command.py -q
 python plugins/ssn-guard/tests/test_launcher_portability.py
+python -m pytest plugins/ssn-guard/tests -q
 ```
 
 No credentials, live client data, or full SSN fixtures are needed. Original

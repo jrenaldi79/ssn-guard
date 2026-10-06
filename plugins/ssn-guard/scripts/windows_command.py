@@ -4,7 +4,7 @@ import os
 import subprocess
 import sys
 
-from ssn_mask import mask_text
+from ssn_mask import mask_text, notice
 
 
 def wrap_windows_command(command: str) -> str:
@@ -44,8 +44,10 @@ def main() -> int:
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False,
         )
         output = result.stdout.decode("utf-8", errors="replace")
-        masked, _ = mask_text(output)
+        masked, count = mask_text(output)
         sys.stdout.write(masked)
+        if count:
+            sys.stderr.write(notice(count) + "\n")
         return result.returncode
     except Exception:
         # Never include command output or exception details in a failure message.

@@ -99,7 +99,10 @@ class MaskingBoundaryTests(unittest.TestCase):
         from unittest.mock import Mock
         mask = Mock(return_value=("[masked]", 1))
         code, out, err = self.run_mock(mask, child)
-        self.assertEqual((code, out, err), (7, "[masked]", ""))
+        self.assertEqual((code, out), (7, "[masked]"))
+        self.assertIn("redacted 1", err)
+        self.assertIn("False positives", err)
+        self.assertNotIn("private-marker", err)
         mask.assert_called_once_with("private-marker")
 
     def test_mask_failure_withholds_all_output(self):

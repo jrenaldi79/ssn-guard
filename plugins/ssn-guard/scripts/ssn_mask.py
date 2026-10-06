@@ -161,10 +161,21 @@ def mask_value(value, mask_numbers: bool = False):
     return value, 0
 
 
+def notice(count: int) -> str:
+    """Describe redaction without disclosing original content."""
+    return (
+        f"SSN Guard redacted {count} possible SSN value(s). "
+        "False positives are possible; affected values are incomplete. "
+        "Only the last four digits are shown."
+    )
+
+
 def main() -> int:
     data = sys.stdin.buffer.read().decode("utf-8", errors="replace")
-    masked, _ = mask_text(data)
+    masked, count = mask_text(data)
     sys.stdout.write(masked)
+    if count:
+        sys.stderr.write(notice(count) + "\n")
     return 0
 
 

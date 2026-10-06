@@ -13,8 +13,8 @@ writes the decision JSON on stdout.
                     the model as raw bytes and cannot be masked.
   PostToolUse       Masks every string in the tool result.
                     Claude Code: returns updatedToolOutput (same shape).
-                    Codex: returns decision "block" with the masked text,
-                    which Codex shows to the model instead of the result.
+                    Codex: returns continue false with masked feedback,
+                    replacing model-visible output without rejecting calls.
 
 If this script fails before a tool runs, it exits with code 2. Both tools
 treat exit code 2 as "block", so an error never lets raw data through.
@@ -36,7 +36,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from ssn_mask import contains_ssn, mask_text, mask_value  # noqa: E402
+from ssn_mask import contains_ssn, mask_text, mask_value, notice  # noqa: E402
 
 WRAP_MARKER = "# ssn-guard:wrapped"
 MASKER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ssn_mask.py")
@@ -99,14 +99,6 @@ def audit(event: str, tool: str, count: int, action: str, plat: str) -> None:
 def emit(obj: dict) -> int:
     sys.stdout.write(json.dumps(obj))
     return 0
-
-
-def notice(count: int) -> str:
-    return (
-        f"ssn-guard masked {count} value(s) that look like Social Security "
-        "numbers in this tool result. Only the last four digits are shown "
-        "(***-**-1234). The full numbers are not available."
-    )
 
 
 # ------------------------------------------------------- UserPromptSubmit
@@ -223,7 +215,7 @@ def wrap_command(command: str, shell: str | None = None) -> str:
         "exec 8>&1\n"
         "__ssng_flush() {\n"
         '  if [ -n "${__ssng_f:-}" ] && [ -f "$__ssng_f" ]; then\n'
-        f'    {py} {masker} <"$__ssng_f" >&8 || echo \'ssn-guard: masking failed; output withheld\' >&8\n'
+        f'    {py} {masker} <"$__ssng_f" >&8 2>&8 || echo \'ssn-guard: masking failed; output withheld\' >&8\n'
         '    rm -f "$__ssng_f"\n'
         "  fi\n"
         "}\n"
@@ -330,8 +322,9 @@ def on_post_tool(data: dict, plat: str) -> int:
     is_mcp = tool.startswith("mcp__")
 
     if plat == "codex":
-        # Codex cannot replace a result in place. "block" with a reason
-        # makes Codex show the reason to the model instead of the result.
+        # Replace model-visible output with sanitized feedback. Unlike
+        # decision "block", continue false does not reject code-mode calls.
+        # This is text feedback, not an in-place structured result rewrite.
         if isinstance(response, str):
             masked, count = mask_text(response)
             text = masked
@@ -341,7 +334,14 @@ def on_post_tool(data: dict, plat: str) -> int:
         if not count:
             return 0
         audit("PostToolUse", tool, count, "masked", plat)
-        return emit({"decision": "block", "reason": notice(count) + "\n\n" + text})
+        return emit({
+            "continue": False,
+            "stopReason": notice(count) + "\n\n" + text,
+            "hookSpecificOutput": {
+                "hookEventName": "PostToolUse",
+                "additionalContext": notice(count),
+            },
+        })
 
     masked, count = mask_value(response, mask_numbers=is_mcp)
     if not count:
