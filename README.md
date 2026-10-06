@@ -50,6 +50,20 @@ copy. The masker's executable logic is preserved.
 ## Windows repair
 
 The launcher resolves Python without relying on Windows Store aliases. The
+Windows launcher probes candidates as they are discovered and stops on the first
+working interpreter; installation-directory scans run only when PATH candidates
+fail. It keeps the existing fallback order and caches the resolved executable in
+`python-runtime-<selection-hash>.json` under the plugin data directory (or
+`~/.ssn-guard`). Each project and interpreter-selection environment has its own
+entry, so switching back can reuse a validated selection. The hash includes
+PATH, virtual environments and the current project directory; environment
+values are not stored in the cache. Missing, corrupt, changed or
+older-than-24-hour entries trigger rediscovery. Upgrading from the legacy
+`python-runtime.json` performs one normal discovery for each selection. Cache writes
+are optional and atomic. Warm launches check Python 3.10+ and execute the guard
+in one process, preserving stdin and guard exit codes. Unexpected Python startup
+failures become blocking exit code 2. Guard failures are never retried.
+The
 command wrapper uses the active PowerShell engine, captures both output streams,
 masks before emitting, preserves command exit status, and withholds output on
 masking failures. Explicit unsupported Windows shells fail closed.

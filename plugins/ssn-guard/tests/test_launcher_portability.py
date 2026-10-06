@@ -38,7 +38,8 @@ def main():
             shutil.copyfile(PLUGIN / 'scripts' / name, scripts / name)
         for name in ('launch_windows.ps1', 'launch_posix.sh'):
             shutil.copyfile(STAGE / name, scripts / name)
-        env = dict(os.environ, PLUGIN_ROOT=str(package), CLAUDE_PLUGIN_ROOT=str(package))
+        env = dict(os.environ, PLUGIN_ROOT=str(package), CLAUDE_PLUGIN_ROOT=str(package),
+                   PLUGIN_DATA=str(fixture / 'data'), CLAUDE_PLUGIN_DATA=str(fixture / 'data'))
         commands = [
             [POWERSHELL, '-NoProfile', '-NonInteractive', '-File', str(windows)],
             [SH, str(posix)],
@@ -54,7 +55,8 @@ def main():
             assert result.returncode == 2 and 'blocked for safety' in result.stderr, 'guard blocking code was not preserved'
             checks += 1
         windows_path = str(Path(os.environ['SystemRoot']) / 'System32') + ';' + os.environ['SystemRoot']
-        fallback_env = dict(env, PATH=windows_path, LOCALAPPDATA=os.environ['LOCALAPPDATA'])
+        fallback_env = dict(env, PATH=windows_path, LOCALAPPDATA=os.environ['LOCALAPPDATA'],
+                            PLUGIN_DATA=str(fixture / 'fallback-data'), CLAUDE_PLUGIN_DATA=str(fixture / 'fallback-data'))
         result = run(commands[0], json.dumps(dict(hook_event_name='PostToolUse', turn_id='synthetic', tool_name='synthetic_tool', tool_response='Unicode check: café')), fallback_env)
         assert result.returncode == 0 and not result.stderr.strip(), 'version-independent Python fallback failed'
         checks += 1
@@ -63,7 +65,9 @@ def main():
             result = run(command, '{}', missing_env)
             assert result.returncode == 2 and 'blocked for safety' in result.stderr, 'missing guard did not fail closed'
             checks += 1
-        unavailable_env = dict(env, PATH=windows_path, LOCALAPPDATA=str(fixture / 'empty'), ProgramFiles=str(fixture / 'empty'), **{'ProgramFiles(x86)': str(fixture / 'empty')})
+        unavailable_env = dict(env, PATH=windows_path, LOCALAPPDATA=str(fixture / 'empty'), ProgramFiles=str(fixture / 'empty'),
+                               PLUGIN_DATA=str(fixture / 'unavailable-data'), CLAUDE_PLUGIN_DATA=str(fixture / 'unavailable-data'),
+                               **{'ProgramFiles(x86)': str(fixture / 'empty')})
         result = run(commands[0], '{}', unavailable_env)
         assert result.returncode == 2 and 'Python' in result.stderr, 'missing Python did not fail closed'
         checks += 1
